@@ -8,7 +8,6 @@ enum Outcome {
 
 #[derive(Debug, PartialEq)]
 enum Direction {
-    Unknown,
     Ascending,
     Descending,
 }
@@ -27,13 +26,12 @@ fn parse(input: &str) -> Vec<Vec<u32>> {
 pub fn part_one(input: &str) -> Option<u32> {
     let data = parse(input);
 
-    let result: Vec<Outcome> = data
+    let result = data
         .iter()
-        .map(|set| {
-            let mut direction = Direction::Unknown;
+        .filter_map(|set| {
             let mut window = set.windows(2).peekable();
 
-            direction = match window.peek() {
+            let direction = match window.peek() {
                 Some([left, right]) => match left > right {
                     true => Direction::Descending,
                     false => Direction::Ascending,
@@ -44,16 +42,81 @@ pub fn part_one(input: &str) -> Option<u32> {
             while let Some([left, right]) = window.next() {
                 let diff = left.abs_diff(*right);
 
-                if diff < 1 || diff > 3 {
-                    return Outcome::Unsafe;
+                if !(1..=3).contains(&diff) {
+                    return None;
                 }
 
                 if (direction == Direction::Descending && left < right)
                     || (direction == Direction::Ascending && left > right)
                 {
-                    return Outcome::Unsafe;
+                    return None;
                 }
             }
+
+            Some(Outcome::Safe)
+        })
+        .count();
+
+    Some(result as u32)
+}
+
+pub fn part_two(input: &str) -> Option<u32> {
+    let data = parse(input);
+
+    let result: Vec<Outcome> = data
+        .iter()
+        .map(|set| {
+            let mut previous_location = None;
+            let mut extra_life_used = false;
+
+            dbg!("Handling set:");
+            dbg!(set);
+
+            let direction = match set.windows(2).next() {
+                Some([left, right]) => match left > right {
+                    true => Direction::Descending,
+                    false => Direction::Ascending,
+                },
+                _ => unreachable!("Window should always have 2 items"),
+            };
+
+            let mut locations = set.iter();
+            while let Some(location) = locations.next() {
+                dbg!("Current: ");
+                dbg!(location);
+                dbg!("Previous: ");
+                dbg!(previous_location);
+
+                let Some(prev) = previous_location else {
+                    previous_location = Some(location);
+
+                    continue;
+                };
+
+                let diff = prev.abs_diff(*location);
+
+                let out_of_bounds = !(1..=3).contains(&diff);
+                let limit_exceeded = (direction == Direction::Descending && prev < location)
+                    || (direction == Direction::Ascending && prev > location);
+
+                if out_of_bounds || limit_exceeded && !extra_life_used {
+                    if extra_life_used {
+                        dbg!("Fail!");
+
+                        return Outcome::Unsafe;
+                    }
+
+                    dbg!("Used extra life");
+
+                    extra_life_used = true;
+
+                    continue;
+                }
+
+                previous_location = Some(location);
+            }
+
+            dbg!("Pass!");
 
             Outcome::Safe
         })
@@ -65,10 +128,6 @@ pub fn part_one(input: &str) -> Option<u32> {
             .filter(|outcome| **outcome == Outcome::Safe)
             .count() as u32,
     )
-}
-
-pub fn part_two(input: &str) -> Option<u32> {
-    None
 }
 
 #[cfg(test)]
@@ -84,6 +143,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(4));
     }
 }

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 advent_of_code::solution!(1);
 
 fn split_to_tuple(line: &str) -> (u32, u32) {
