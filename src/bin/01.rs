@@ -15,16 +15,19 @@ fn split_to_tuple(line: &str) -> (u32, u32) {
     )
 }
 
+fn split_to_vecs(input: &str) -> (Vec<u32>, Vec<u32>) {
+    input.lines().fold((vec![], vec![]), |mut acc, line| {
+        let ids = split_to_tuple(line);
+
+        acc.0.push(ids.0);
+        acc.1.push(ids.1);
+
+        acc
+    })
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
-    let (mut right, mut left): (Vec<u32>, Vec<u32>) =
-        input.lines().fold((vec![], vec![]), |mut acc, line| {
-            let ids = split_to_tuple(line);
-
-            acc.0.push(ids.0);
-            acc.1.push(ids.1);
-
-            acc
-        });
+    let (mut right, mut left) = split_to_vecs(input);
 
     right.sort();
     left.sort();
@@ -39,14 +42,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let data = input.lines().fold((vec![], vec![]), |mut acc, line| {
-        let ids = split_to_tuple(line);
-
-        acc.0.push(ids.0);
-        acc.1.push(ids.1);
-
-        acc
-    });
+    let data = split_to_vecs(input);
 
     let sum: u32 = data
         .0
