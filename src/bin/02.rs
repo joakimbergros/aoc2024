@@ -41,40 +41,18 @@ pub fn part_one(input: &str) -> Option<u32> {
                 _ => unreachable!("Window should always have 2 items"),
             };
 
-            dbg!("==============");
-            dbg!(&direction);
-
             while let Some([left, right]) = window.next() {
-                dbg!(left, right);
-
                 let diff = left.abs_diff(*right);
 
-                dbg!(&diff);
-
                 if diff < 1 || diff > 3 {
-                    dbg!("Fail");
                     return Outcome::Unsafe;
                 }
 
-                match direction {
-                    Direction::Descending => {
-                        if left < right {
-                            dbg!("Fail");
-                            return Outcome::Unsafe;
-                        }
-                    }
-                    Direction::Ascending => {
-                        if right < left {
-                            dbg!("Fail");
-                            return Outcome::Unsafe;
-                        }
-                    }
-                    Direction::Unknown => {
-                        unreachable!("This should have been covered in the peeking")
-                    }
+                if (direction == Direction::Descending && left < right)
+                    || (direction == Direction::Ascending && left > right)
+                {
+                    return Outcome::Unsafe;
                 }
-
-                dbg!("Pass");
             }
 
             Outcome::Safe
