@@ -85,6 +85,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         .map(|set| {
             let mut previous_location = None;
             let mut extra_life_used = false;
+            let mut descending: Option<bool> = None;
 
             println!(
                 "Handling set: {}",
@@ -108,6 +109,30 @@ pub fn part_two(input: &str) -> Option<u32> {
             while let Some(location) = locations.next() {
                 let left = location.get(0).expect("Should have a left");
                 let right = location.get(1).expect("Should have a right");
+
+                let currently_descending = Some(left > right);
+                if !descending.eq(&currently_descending) {
+                    println!(
+                        "We've changed direction... Descending: {}",
+                        currently_descending.unwrap()
+                    );
+                }
+
+                let diff = left.abs_diff(*right);
+                let dir = match direction {
+                    Direction::Descending => left > right,
+                    Direction::Ascending => left < right,
+                };
+
+                if BOUNDS.contains(&diff) && dir {
+                    println!("We're Ok so far...");
+
+                    continue;
+                } else {
+                    println!("Not Ok");
+
+                    return Outcome::Unsafe;
+                }
 
                 let Some(prev) = previous_location else {
                     previous_location = Some(left);
