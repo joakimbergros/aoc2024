@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, ops::RangeInclusive};
 
 advent_of_code::solution!(2);
 
@@ -75,28 +75,10 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(result as u32)
 }
 
+const BOUNDS: RangeInclusive<u32> = 1..=3;
+
 pub fn part_two(input: &str) -> Option<u32> {
     let data = parse(input);
-    let bounds = 1..=3;
-
-    for locations in data {
-        locations
-            .iter()
-            .enumerate()
-            .fold(HashMap::new(), |mut acc, (index, i)| {
-                let exists = acc.contains_key(&index);
-
-                if !exists {
-                    acc.insert(index, i);
-                }
-
-                println!("{}: {} is in: {}", index, i, exists);
-
-                acc
-            });
-    }
-
-    return None;
 
     let result: Vec<Outcome> = data
         .iter()
@@ -143,7 +125,7 @@ pub fn part_two(input: &str) -> Option<u32> {
                 let diff = prev.abs_diff(*left);
                 println!("Diff between {} and {} is {}", prev, left, diff);
 
-                if bounds.contains(&diff) {
+                if BOUNDS.contains(&diff) {
                     println!("We're within limit of 3");
 
                     previous_location = Some(left);
@@ -151,14 +133,19 @@ pub fn part_two(input: &str) -> Option<u32> {
                     continue;
                 }
 
-                let Some(peek) = locations.peek() else {
-                    return Outcome::Unsafe;
-                };
+                let current_abs = left.abs_diff(*right);
+
+                if BOUNDS.contains(&current_abs) && !extra_life_used {
+                    println!("It fits if we skip previous");
+
+                    extra_life_used = true;
+                    previous_location = Some(left);
+
+                    continue;
+                }
 
                 let left_abs = prev.abs_diff(*right);
-                let right_abs = left.abs_diff(peek[0]);
-
-                if bounds.contains(&left_abs) && !extra_life_used {
+                if BOUNDS.contains(&left_abs) && !extra_life_used {
                     println!("It fits if we skip {}", left);
 
                     extra_life_used = true;
@@ -167,7 +154,12 @@ pub fn part_two(input: &str) -> Option<u32> {
                     continue;
                 }
 
-                if bounds.contains(&right_abs) && !extra_life_used {
+                let Some(peek) = locations.peek() else {
+                    return Outcome::Unsafe;
+                };
+
+                let right_abs = left.abs_diff(peek[0]);
+                if BOUNDS.contains(&right_abs) && !extra_life_used {
                     println!("It fits if we skip {} in next pair", peek[0]);
 
                     extra_life_used = true;

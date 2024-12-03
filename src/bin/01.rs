@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 advent_of_code::solution!(1);
 
 fn split_to_tuple(line: &str) -> (u32, u32) {
@@ -41,14 +43,34 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(result)
 }
 
+fn slow_vec(vecs: (Vec<u32>, Vec<u32>)) -> u32 {
+    vecs.0
+        .iter()
+        .map(|v| v * vecs.1.iter().filter(|n| *n == v).count() as u32)
+        .sum()
+}
+
+fn fast_hash(vecs: (Vec<u32>, Vec<u32>)) -> u32 {
+    let grouped = vecs.1.iter().fold(HashMap::new(), |mut acc, i| {
+        acc.entry(*i).and_modify(|i| *i += 1).or_insert(1_u32);
+
+        acc
+    });
+
+    vecs.0
+        .iter()
+        .filter_map(|v| match grouped.get(v) {
+            Some(val) => Some(v * val),
+            _ => None,
+        })
+        .sum()
+}
+
 pub fn part_two(input: &str) -> Option<u32> {
     let data = split_to_vecs(input);
 
-    let sum: u32 = data
-        .0
-        .iter()
-        .map(|v| v * data.1.iter().filter(|n| *n == v).count() as u32)
-        .sum();
+    // let sum = slow_vec(data);
+    let sum = fast_hash(data);
 
     Some(sum)
 }
