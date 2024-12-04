@@ -1,4 +1,5 @@
-use std::{collections::HashMap, fmt::Display, ops::RangeInclusive};
+use itertools::Itertools;
+use std::{fmt::Display, ops::RangeInclusive};
 
 advent_of_code::solution!(2);
 
@@ -8,7 +9,20 @@ enum Outcome {
     Unsafe,
 }
 
-#[derive(Debug, PartialEq)]
+impl Display for Outcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Outcome::Safe => "safe",
+                Outcome::Unsafe => "unsafe",
+            }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 enum Direction {
     Ascending,
     Descending,
@@ -27,7 +41,7 @@ impl Display for Direction {
     }
 }
 
-fn parse(input: &str) -> Vec<Vec<u32>> {
+fn parse(input: &str) -> Vec<Vec<i32>> {
     input
         .lines()
         .map(|line| {
@@ -75,143 +89,80 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(result as u32)
 }
 
-const BOUNDS: RangeInclusive<u32> = 1..=3;
+const BOUNDS: RangeInclusive<i32> = 1..=3;
+
+fn check_safety(locations: &Vec<i32>) -> Outcome {
+    let mut direction: Option<Direction> = None;
+
+    for (left, right) in locations.iter().tuple_windows() {
+        dbg!(left - right);
+        let diff = left - right;
+
+        match diff.signum() {
+            1 => {
+                let dir = direction.get_or_insert(Direction::Descending);
+                if dir != &mut Direction::Descending {
+                    return Outcome::Unsafe;
+                }
+
+                if !BOUNDS.contains(&diff) {
+                    return Outcome::Unsafe;
+                }
+            }
+            -1 => {
+                let dir = direction.get_or_insert(Direction::Ascending);
+                if dir != &mut Direction::Ascending {
+                    return Outcome::Unsafe;
+                }
+
+                if !BOUNDS.contains(&diff.abs()) {
+                    return Outcome::Unsafe;
+                }
+            }
+            0 => {
+                return Outcome::Unsafe;
+            }
+            _ => panic!("Should not come here"),
+        }
+    }
+
+    Outcome::Safe
+}
 
 pub fn part_two(input: &str) -> Option<u32> {
     let data = parse(input);
+    let mut successful = 0;
 
-    let result: Vec<Outcome> = data
-        .iter()
-        .map(|set| {
-            let mut previous_location = None;
-            let mut extra_life_used = false;
-            let mut descending: Option<bool> = None;
+    for locations in data {
+        let outcome = check_safety(&locations);
 
-            println!(
-                "Handling set: {}",
-                &set.iter()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            );
+        if outcome == Outcome::Safe {
+            successful += 1;
 
-            let mut locations = set.windows(2).peekable();
+            continue;
+        }
 
-            let peeked = &locations
-                .peek()
-                .expect("Should have 2 numbers at the start");
-            let direction = match peeked[0] > peeked[1] {
-                true => Direction::Descending,
-                false => Direction::Ascending,
-            };
-            println!("We're {}", direction);
+        let mut second_chance_works = false;
+        for i in 0..locations.len() {
+            let mut clone = locations.clone();
 
-            while let Some(location) = locations.next() {
-                let left = location.get(0).expect("Should have a left");
-                let right = location.get(1).expect("Should have a right");
+            clone.remove(i);
 
-                let currently_descending = Some(left > right);
-                if !descending.eq(&currently_descending) {
-                    println!(
-                        "We've changed direction... Descending: {}",
-                        currently_descending.unwrap()
-                    );
-                }
-
-                let diff = left.abs_diff(*right);
-                let dir = match direction {
-                    Direction::Descending => left > right,
-                    Direction::Ascending => left < right,
-                };
-
-                if BOUNDS.contains(&diff) && dir {
-                    println!("We're Ok so far...");
-
-                    continue;
-                } else {
-                    println!("Not Ok");
-
-                    return Outcome::Unsafe;
-                }
-
-                let Some(prev) = previous_location else {
-                    previous_location = Some(left);
-
-                    println!(
-                        "First item {}, saving to previous location",
-                        previous_location.unwrap()
-                    );
-
-                    continue;
-                };
-
-                println!("Comparing: {} and {}", prev, left);
-
-                let diff = prev.abs_diff(*left);
-                println!("Diff between {} and {} is {}", prev, left, diff);
-
-                if BOUNDS.contains(&diff) {
-                    println!("We're within limit of 3");
-
-                    previous_location = Some(left);
-
-                    continue;
-                }
-
-                let current_abs = left.abs_diff(*right);
-
-                if BOUNDS.contains(&current_abs) && !extra_life_used {
-                    println!("It fits if we skip previous");
-
-                    extra_life_used = true;
-                    previous_location = Some(left);
-
-                    continue;
-                }
-
-                let left_abs = prev.abs_diff(*right);
-                if BOUNDS.contains(&left_abs) && !extra_life_used {
-                    println!("It fits if we skip {}", left);
-
-                    extra_life_used = true;
-                    previous_location = Some(right);
-
-                    continue;
-                }
-
-                let Some(peek) = locations.peek() else {
-                    return Outcome::Unsafe;
-                };
-
-                let right_abs = left.abs_diff(peek[0]);
-                if BOUNDS.contains(&right_abs) && !extra_life_used {
-                    println!("It fits if we skip {} in next pair", peek[0]);
-
-                    extra_life_used = true;
-                    previous_location = peek.get(0);
-                    locations.next();
-
-                    continue;
-                }
-
-                println!("********* The next blocks doesn't fit either, it's unsafe! **********");
-
-                return Outcome::Unsafe;
+            let second_try = check_safety(&clone);
+            if second_try == Outcome::Safe {
+                second_chance_works = true;
+                break;
             }
+        }
 
-            println!("Every location are within limits!");
-            println!("=================================");
+        if !second_chance_works {
+            continue;
+        }
 
-            Outcome::Safe
-        })
-        .collect();
+        successful += 1;
+    }
 
-    Some(
-        result
-            .iter()
-            .filter(|outcome| **outcome == Outcome::Safe)
-            .count() as u32,
-    )
+    Some(successful)
 }
 
 #[cfg(test)]
