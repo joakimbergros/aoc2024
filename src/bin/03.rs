@@ -74,8 +74,6 @@ fn char_walk_two(input: &str) -> u32 {
         let mut char_iter = line.chars().peekable();
 
         while let Some(c) = char_iter.next() {
-            println!("{}", &c);
-
             match c {
                 'm' => {
                     if !green_light {
