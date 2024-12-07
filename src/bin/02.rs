@@ -95,7 +95,6 @@ fn check_safety(locations: &Vec<i32>) -> Outcome {
     let mut direction: Option<Direction> = None;
 
     for (left, right) in locations.iter().tuple_windows() {
-        dbg!(left - right);
         let diff = left - right;
 
         match diff.signum() {
