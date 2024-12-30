@@ -1,121 +1,74 @@
 use std::{
-    collections::HashMap,
-    iter::{self, Filter},
+    char::REPLACEMENT_CHARACTER, collections::HashMap, fmt::Display, ops::Add, thread::current,
 };
 
 use crate::Direction::{East, North, NorthEast, NorthWest, South, SouthEast, SouthWest, West};
-use itertools::Itertools;
 
 advent_of_code::solution!(4);
 
-const EXPECTED_WORDS: [char; 4] = ['X', 'M', 'A', 'S'];
+const START_CHAR: char = 'X';
 const WANTED_CHARS: [char; 3] = ['M', 'A', 'S'];
-const NEIGHBOUR_MAP: [(isize, isize); 9] = [
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, -1),
-    (0, 0),
-    (0, 1),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-];
 
-const NEIGHBOUR_MAP2: [Direction; 8] = [
-    NorthWest(-1, -1),
-    North(-1, 0),
-    NorthEast(-1, 1),
-    West(0, -1),
-    East(0, 1),
-    SouthWest(1, -1),
-    South(1, 0),
-    SouthEast(1, 1),
-];
+type Map = HashMap<Coordinate, char>;
 
+#[derive(Debug)]
 enum Direction {
-    NorthWest(isize, isize),
-    North(isize, isize),
-    NorthEast(isize, isize),
-    West(isize, isize),
-    East(isize, isize),
-    SouthWest(isize, isize),
-    South(isize, isize),
-    SouthEast(isize, isize),
+    NorthWest,
+    North,
+    NorthEast,
+    West,
+    East,
+    SouthWest,
+    South,
+    SouthEast,
 }
 
 impl Direction {
-    fn from_coordinate(coord: Coordinate) -> Self {}
-    fn values(&self) -> (&isize, &isize) {
-        match self {
-            NorthWest(x, y)
-            | North(x, y)
-            | NorthEast(x, y)
-            | West(x, y)
-            | East(x, y)
-            | SouthWest(x, y)
-            | South(x, y)
-            | SouthEast(x, y) => (x, y),
-        }
+    fn next(&self, c: &Coordinate) -> Coordinate {
+        c.from_direction(&self)
     }
 
-    fn next(&self) -> Self {
-        match self {
-            NorthWest(x, y) => Direction::NorthWest(x - 1, y - 1),
-            North(x, y) => Direction::North(x - 1, y.clone()),
-            NorthEast(x, y) => Direction::NorthEast(x - 1, y + 1),
-            West(x, y) => Direction::West(x.clone(), y - 1),
-            East(x, y) => Direction::East(x.clone(), y + 1),
-            SouthWest(x, y) => Direction::SouthWest(x + 1, y - 1),
-            South(x, y) => Direction::South(x - 1, y.clone()),
-            SouthEast(x, y) => Direction::SouthEast(x - 1, y + 1),
-        }
+    const VALUES: [Self; 8] = [
+        Self::NorthWest,
+        Self::North,
+        Self::NorthEast,
+        Self::West,
+        Self::East,
+        Self::SouthWest,
+        Self::South,
+        Self::SouthEast,
+    ];
+}
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+struct Coordinate(isize, isize);
+
+impl Display for Coordinate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "x: {}, y: {}", self.0, self.1)
     }
 }
 
-type Coordinate = (isize, isize);
-type Map = HashMap<Coordinate, char>;
+impl Add for Coordinate {
+    type Output = Coordinate;
 
-trait Mappable {
-    fn scan(&self, coordinate: &Coordinate, index: usize) -> u32;
+    fn add(self, rhs: Self) -> Self::Output {
+        Coordinate(self.0 + rhs.0, self.1 + rhs.1)
+    }
 }
 
-impl Mappable for Map {
-    fn scan(&self, coordinate: &Coordinate, index: usize) -> u32 {
-        if EXPECTED_WORDS.len() == index {
-            return 0;
+impl Coordinate {
+    fn from_direction(&self, d: &Direction) -> Self {
+        match d {
+            NorthWest => Self(self.0 - 1, self.1 - 1),
+            North => Self(self.0.clone(), self.1 - 1),
+            NorthEast => Self(self.0 + 1, self.1 - 1),
+            West => Self(self.0 - 1, self.1.clone()),
+            East => Self(self.0 + 1, self.1.clone()),
+            SouthWest => Self(self.0 - 1, self.1 + 1),
+            South => Self(self.0.clone(), self.1 + 1),
+            SouthEast => Self(self.0 + 1, self.1 + 1),
         }
-
-        dbg!(&coordinate, EXPECTED_WORDS[index]);
-        let mut appearances = 0;
-
-        for (x, y) in NEIGHBOUR_MAP {
-            let fx = coordinate.0 as isize + x;
-            let fy = coordinate.1 as isize + y;
-
-            if fx.is_negative() || fy.is_negative() {
-                continue;
-            }
-
-            let next_coordinate = (fx, fy);
-
-            let letters = match self.get(&next_coordinate) {
-                Some(v) if *v == EXPECTED_WORDS[index] => {
-                    dbg!(v);
-                    self.scan(&next_coordinate, index + 1)
-                }
-                c => {
-                    dbg!(c);
-                    continue;
-                }
-            };
-
-            dbg!(letters);
-
-            appearances += 1;
-        }
-
-        appearances
     }
 }
 
@@ -124,7 +77,7 @@ fn parse(input: &str) -> HashMap<Coordinate, char> {
 
     for (li, lv) in input.lines().enumerate() {
         for (ci, cv) in lv.chars().enumerate() {
-            map.insert((li as isize, ci as isize), cv);
+            map.insert(Coordinate(li as isize, ci as isize), cv);
         }
     }
 
@@ -137,81 +90,35 @@ pub fn part_one(input: &str) -> Option<u32> {
 
     let result: u32 = map
         .iter()
-        .filter(|(_, c)| **c == 'X')
-        .map(|coord| {
-            for direction in &NEIGHBOUR_MAP2 {
-                direction.next()
-            }
+        .filter(|(_, c)| **c == START_CHAR)
+        .map(|(coord, _)| {
+            let mut hits = 0;
 
-            for wanted in &WANTED_CHARS {}
+            // println!(">> Handling {coord}");
 
-            let mut start_char_index = 1;
-            let mut total_words = 0;
+            'direction_loop: for dir in Direction::VALUES {
+                // dbg!(&dir);
+                let mut current: Coordinate = coord.from_direction(&dir);
+                for expected in &WANTED_CHARS {
+                    let Some(coord_char) = map.get(&current) else {
+                        continue 'direction_loop;
+                    };
 
-            for dir in &NEIGHBOUR_MAP2 {
-                let (dx, dy) = dir.values();
-                let ((cx, cy), _) = coord;
-                let fx = dx + cx;
-                let fy = dy + cy;
-
-                match map.get(&(fx, fy)) {
-                    Some(letter) if *letter == EXPECTED_WORDS[start_char_index] => true,
-                    _ => {
-                        continue;
+                    if !coord_char.eq(expected) {
+                        continue 'direction_loop;
                     }
-                };
 
-                total_words += 1;
+                    current = current.from_direction(&dir);
+                }
 
-                /*let next_coordinate = (fx as usize, fy as usize);
-
-                let letters = match self.get(&next_coordinate) {
-                    Some(v) if *v == EXPECTED_WORDS[index] => {
-                        dbg!(v);
-                        self.scan(&next_coordinate, index + 1)
-                    },
-                    c => {
-                        dbg!(c);
-                        continue
-                    },
-                };
-
-                dbg!(letters);
-
-                appearances += 1;*/
+                hits += 1;
             }
 
-            total_words
+            hits
         })
         .sum();
 
-    dbg!(result);
-
-    /*for (coordinate, c) in &map {
-        if *c != 'X' {
-            continue;
-        }
-
-        total += map.scan(coordinate, 0);
-
-        /* for (x, y) in NEIGHBOUR_MAP {
-            let fx=  coordinate.0 as isize + x;
-            let fy=  coordinate.1 as isize + y;
-
-            if fx.is_negative() || fy.is_negative() {
-                continue;
-            }
-
-            let val = match map.get(&(fx as usize, fy as usize)) {
-                Some(v) if EXPECTED_WORDS.contains(v) => v,
-                _ => continue,
-            };
-
-
-        } */
-    }*/
-
-    Some(123)
+    Some(result)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
