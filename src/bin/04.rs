@@ -7,6 +7,7 @@ use crate::Direction::{East, North, NorthEast, NorthWest, South, SouthEast, Sout
 advent_of_code::solution!(4);
 
 const START_CHAR: char = 'X';
+const START_CHAR_2: char = 'A';
 const WANTED_CHARS: [char; 3] = ['M', 'A', 'S'];
 
 type Map = HashMap<Coordinate, char>;
@@ -84,6 +85,80 @@ fn parse(input: &str) -> HashMap<Coordinate, char> {
     map
 }
 
+fn caculate_xmas(coord: &Coordinate, map: &Map) -> u32 {
+    let mut hits = 0;
+
+    // println!(">> Handling {coord}");
+
+    'direction_loop: for dir in Direction::VALUES {
+        // dbg!(&dir);
+        let mut current: Coordinate = coord.from_direction(&dir);
+        for expected in &WANTED_CHARS {
+            let Some(coord_char) = map.get(&current) else {
+                continue 'direction_loop;
+            };
+
+            if !coord_char.eq(expected) {
+                continue 'direction_loop;
+            }
+
+            current = current.from_direction(&dir);
+        }
+
+        hits += 1;
+    }
+
+    hits
+}
+
+fn calculate_mas(coord: &Coordinate, map: &Map) -> u32 {
+    // Check NW, then SE if NW = S | M
+    let nw = coord.from_direction(&Direction::NorthWest);
+
+    let Some(char) = map.get(&nw) else {
+        return 0;
+    };
+
+    let expected_oposite = match char {
+        'M' => 'S',
+        'S' => 'M',
+        _ => return 0,
+    };
+
+    let oposite_coord = coord.from_direction(&Direction::SouthEast);
+    let Some(oposite) = map.get(&oposite_coord) else {
+        return 0;
+    };
+
+    if !oposite.eq(&expected_oposite) {
+        return 0;
+    }
+
+    // Check NE, then SW if NE = S | M
+    let ne = coord.from_direction(&Direction::NorthEast);
+
+    let Some(char) = map.get(&ne) else {
+        return 0;
+    };
+
+    let expected_oposite = match char {
+        'M' => 'S',
+        'S' => 'M',
+        _ => return 0,
+    };
+
+    let oposite_coord = coord.from_direction(&Direction::SouthWest);
+    let Some(oposite) = map.get(&oposite_coord) else {
+        return 0;
+    };
+
+    if !oposite.eq(&expected_oposite) {
+        return 0;
+    }
+
+    return 1;
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let map = parse(input);
     //let mut total = 0;
@@ -91,38 +166,22 @@ pub fn part_one(input: &str) -> Option<u32> {
     let result: u32 = map
         .iter()
         .filter(|(_, c)| **c == START_CHAR)
-        .map(|(coord, _)| {
-            let mut hits = 0;
-
-            // println!(">> Handling {coord}");
-
-            'direction_loop: for dir in Direction::VALUES {
-                // dbg!(&dir);
-                let mut current: Coordinate = coord.from_direction(&dir);
-                for expected in &WANTED_CHARS {
-                    let Some(coord_char) = map.get(&current) else {
-                        continue 'direction_loop;
-                    };
-
-                    if !coord_char.eq(expected) {
-                        continue 'direction_loop;
-                    }
-
-                    current = current.from_direction(&dir);
-                }
-
-                hits += 1;
-            }
-
-            hits
-        })
+        .map(|(coord, _)| caculate_xmas(coord, &map))
         .sum();
 
     Some(result)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let map = parse(input);
+
+    let result: u32 = map
+        .iter()
+        .filter(|(_, c)| **c == START_CHAR_2)
+        .map(|(coord, _)| calculate_mas(coord, &map))
+        .sum();
+
+    Some(result)
 }
 
 #[cfg(test)]
@@ -138,6 +197,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(9));
     }
 }
