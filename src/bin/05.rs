@@ -1,3 +1,5 @@
+use std::{collections::HashMap, result, usize};
+
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, line_ending},
@@ -31,19 +33,42 @@ fn parse_ordering(input: &str) -> IResult<&str, Vec<(u32, u32)>> {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let Ok((rest, orderings)) = parse_ordering(input) else {
+    let Ok((rest, mut orderings)) = parse_ordering(input) else {
         panic!("unable to parse orderings");
     };
 
-    dbg!(&rest);
+    // dbg!(&rest);
 
     let Ok((rest, updates)) = parse_updates(rest) else {
         panic!("unable to parse updates");
     };
 
-    dbg!(rest, orderings, updates);
+    // dbg!(rest, orderings, updates);
 
-    None
+    let rules =
+        orderings
+            .into_iter()
+            .fold(HashMap::new(), |mut acc: HashMap<u32, Vec<u32>>, (l, r)| {
+                acc.entry(l)
+                    .and_modify(|v| v.push(r))
+                    .or_insert_with(|| vec![r]);
+
+                acc
+            });
+
+    let count: usize = updates
+        .into_iter()
+        .flat_map(|row| {
+            row.iter().enumerate().map(|(i, col)| {
+                rules
+                    .get(col)
+                    .and_then(|rs| Some(rs.iter().all(|r| row[..i].contains(col))))
+            })
+        })
+        .filter(|x| x.is_some())
+        .count();
+
+    Some(count as u32)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
