@@ -32,6 +32,18 @@ fn parse_ordering(input: &str) -> IResult<&str, Vec<(u32, u32)>> {
     )(input)
 }
 
+fn group_rules(rules: Vec<(u32, u32)>) -> HashMap<u32, Vec<u32>> {
+    rules
+        .into_iter()
+        .fold(HashMap::new(), |mut acc: HashMap<u32, Vec<u32>>, (l, r)| {
+            acc.entry(l)
+                .and_modify(|v| v.push(r))
+                .or_insert_with(|| vec![r]);
+
+            acc
+        })
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let Ok((rest, mut orderings)) = parse_ordering(input) else {
         panic!("unable to parse orderings");
@@ -45,30 +57,34 @@ pub fn part_one(input: &str) -> Option<u32> {
 
     // dbg!(rest, orderings, updates);
 
-    let rules =
-        orderings
-            .into_iter()
-            .fold(HashMap::new(), |mut acc: HashMap<u32, Vec<u32>>, (l, r)| {
-                acc.entry(l)
-                    .and_modify(|v| v.push(r))
-                    .or_insert_with(|| vec![r]);
+    let rules = group_rules(orderings);
 
-                acc
-            });
+    let mut ok_rows: Vec<Vec<u32>> = Vec::new();
+    'rows: for row in updates {
+        for (i, instruction) in row.iter().enumerate() {
+            let Some(rule) = rules.get(instruction) else {
+                continue;
+            };
 
-    let count: usize = updates
-        .into_iter()
-        .flat_map(|row| {
-            row.iter().enumerate().map(|(i, col)| {
-                rules
-                    .get(col)
-                    .and_then(|rs| Some(rs.iter().all(|r| row[..i].contains(col))))
-            })
-        })
-        .filter(|x| x.is_some())
-        .count();
+            if rule.iter().any(|x| row[..i].contains(x)) {
+                continue 'rows;
+            }
+        }
 
-    Some(count as u32)
+        ok_rows.push(row);
+    }
+
+    let mut sum = 0;
+    for row in ok_rows {
+        let row_len = row.len();
+        if row_len % 2 == 1 {
+            sum += row[row_len / 2];
+        }
+    }
+
+    dbg!(&sum);
+
+    Some(sum)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
@@ -82,12 +98,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(17));
+        assert_eq!(result, Some(143));
     }
 
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(123));
     }
 }
